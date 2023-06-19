@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.maps.tiled.TiledMap;
+import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
@@ -43,7 +44,7 @@ public class LoadingScreen extends ScreenAdapter {
 
         shapeRenderer = new ShapeRenderer();
 
-//        gameAngryBird.assetManager.load("acorn.png", Texture.class);
+        gameAngryBird.assetManager.load("nuttybirds.tmx", TiledMap.class);
     }
 
     @Override

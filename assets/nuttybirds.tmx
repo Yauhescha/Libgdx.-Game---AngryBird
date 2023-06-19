@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.10.1" orientation="orthogonal" renderorder="right-down" width="30" height="17" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="15">
+ <tileset firstgid="1" name="floor" tilewidth="32" tileheight="32" tilecount="10" columns="5">
+  <image source="floor.png" width="160" height="64"/>
+ </tileset>
+ <imagelayer id="2" name="Background">
+  <image source="bg.png" width="960" height="540"/>
+ </imagelayer>
+ <layer id="1" name="Ground" width="30" height="17">
+  <data encoding="base64" compression="zlib">
+   eJztxtsNACAIxVAUX7j/wJYl+PE2OUnNlFJKqX9r6HCMgk8TCxsHUfDp4gGAPAFN
+  </data>
+ </layer>
+ <objectgroup id="6" name="Physics_Floor">
+  <object id="8" x="2.96777" y="483.005" width="949.687" height="50.4521"/>
+ </objectgroup>
+ <objectgroup id="3" name="Physics_Buildings">
+  <object id="2" x="606.91" y="323.78" width="127.13" height="29.9"/>
+  <object id="3" x="478.55" y="325.04" width="126.13" height="28.1938"/>
+  <object id="13" x="671.333" y="356" width="31.3333" height="123"/>
+  <object id="14" x="513.667" y="354" width="29" height="126"/>
+ </objectgroup>
+ <objectgroup id="4" name="Physics_Birds">
+  <object id="10" x="571.296" y="414.746" width="67.5168" height="63.0652">
+   <ellipse/>
+  </object>
+ </objectgroup>
+</map>
