@@ -45,6 +45,12 @@ public class LoadingScreen extends ScreenAdapter {
         shapeRenderer = new ShapeRenderer();
 
         gameAngryBird.assetManager.load("nuttybirds.tmx", TiledMap.class);
+        gameAngryBird.assetManager.load("obstacleVertical.png", Texture.class);
+        gameAngryBird.assetManager.load("obstacleHorizontal.png", Texture.class);
+        gameAngryBird.getAssetManager().load("bird.png", Texture.class);
+        gameAngryBird.getAssetManager().load("slingshot.png", Texture.class);
+        gameAngryBird.getAssetManager().load("squirrel.png", Texture.class);
+        gameAngryBird.getAssetManager().load("acorn.png", Texture.class);
     }
 
     @Override

@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.maps.MapLayer;
@@ -33,6 +34,7 @@ import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.physics.box2d.WorldManifold;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
@@ -54,6 +56,12 @@ public class GameScreen extends ScreenAdapter {
     private final Vector2 firingPosition = anchor.cpy();
     private float distance;
     private float angle;
+
+    private ObjectMap<Body, Sprite> sprites = new ObjectMap<>();
+    ;
+    private Sprite slingshot;
+    private Sprite squirrel;
+    private Sprite staticAcorn;
 
 
     private Viewport viewport;
@@ -108,6 +116,21 @@ public class GameScreen extends ScreenAdapter {
                 return true;
             }
         });
+
+
+        Array<Body> bodies = new Array<>();
+        world.getBodies(bodies);
+        for (Body body : bodies) {
+            Sprite sprite = SpriteGenerator.generateSpriteForBody(GameAngryBird.getAssetManager(), body);
+            if (sprite != null) {
+                sprites.put(body, sprite);
+            }
+        }
+        slingshot = new Sprite(GameAngryBird.getAssetManager().get("slingshot.png", Texture.class));
+        slingshot.setPosition(170, 64);
+        squirrel = new Sprite(GameAngryBird.getAssetManager().get("squirrel.png", Texture.class));
+        squirrel.setPosition(32, 64);
+        staticAcorn = new Sprite(GameAngryBird.getAssetManager().get("acorn.png", Texture.class));
     }
 
     @Override
@@ -123,6 +146,23 @@ public class GameScreen extends ScreenAdapter {
         world.step(delta, 6, 2);
         box2dCam.position.set(UNIT_WIDTH / 2, UNIT_HEIGHT / 2, 0);
         box2dCam.update();
+        updateSpritePositions();
+    }
+
+    private void updateSpritePositions() {
+        for (Body body : sprites.keys()) {
+            Sprite sprite = sprites.get(body);
+            sprite.setPosition(
+                    convertMetresToUnits(body.getPosition().x) -
+                            sprite.getWidth() / 2f,
+                    convertMetresToUnits(body.getPosition().y) -
+                            sprite.getHeight() / 2f);
+            sprite.setRotation(MathUtils.radiansToDegrees *
+                    body.getAngle());
+        }
+        staticAcorn.setPosition(firingPosition.x -
+                staticAcorn.getWidth() / 2f, firingPosition.y -
+                staticAcorn.getHeight() / 2f);
     }
 
     private void clearScreen() {
@@ -134,6 +174,14 @@ public class GameScreen extends ScreenAdapter {
         batch.setTransformMatrix(camera.view);
         orthogonalTiledMapRenderer.render();
         debugRenderer.render(world, box2dCam.combined);
+        batch.begin();
+        for (Sprite sprite : sprites.values()) {
+            sprite.draw(batch);
+        }
+        squirrel.draw(batch);
+        staticAcorn.draw(batch);
+        slingshot.draw(batch);
+        batch.end();
     }
 
     private void drawDebug() {
@@ -157,14 +205,20 @@ public class GameScreen extends ScreenAdapter {
         bd.type = BodyDef.BodyType.DynamicBody;
         Body bullet = world.createBody(bd);
         bullet.createFixture(circleShape, 1);
-        circleShape.dispose();
+
+        Sprite sprite = new Sprite(GameAngryBird.getAssetManager().get("acorn.png", Texture.class));
+        sprite.setOrigin(sprite.getWidth() / 2, sprite.getHeight() / 2);
+        sprites.put(bullet, sprite);
+
         float velX = Math.abs((MAX_STRENGTH * -MathUtils.cos(angle) * (distance / 100f)));
         float velY = Math.abs((MAX_STRENGTH * -MathUtils.sin(angle) * (distance / 100f)));
         bullet.setLinearVelocity(velX, velY);
+        circleShape.dispose();
     }
 
     private void clearDeadBodies() {
         for (Body body : toRemove) {
+            sprites.remove(body);
             world.destroyBody(body);
         }
         toRemove.clear();
@@ -207,46 +261,46 @@ public class GameScreen extends ScreenAdapter {
                 angle = LOWER_ANGLE;
             }
         }
-        firingPosition.set(anchor.x + (distance * -MathUtils.cos(angle)),
+        firingPosition.set(
+                anchor.x + (distance * -MathUtils.cos(angle)),
                 anchor.y + (distance * -MathUtils.sin(angle)));
     }
 
 
+    class NuttyContactListener implements ContactListener {
 
-class NuttyContactListener implements ContactListener {
-
-    @Override
-    public void beginContact(Contact contact) {
-        if (contact.isTouching()) {
-            Fixture attacker = contact.getFixtureA();
-            Fixture defender = contact.getFixtureB();
-            WorldManifold worldManifold = contact.getWorldManifold();
-            if ("enemy".equals(defender.getUserData())) {
-                Vector2 vel1 = attacker.getBody().
-                        getLinearVelocityFromWorldPoint(worldManifold.getPoints()[0]);
-                Vector2 vel2 = defender.getBody().
-                        getLinearVelocityFromWorldPoint(worldManifold.getPoints()[0]);
-                Vector2 impactVelocity = vel1.sub(vel2);
-                if (Math.abs(impactVelocity.x) > 1 || Math.abs(impactVelocity.y) > 1) {
-                    toRemove.add(defender.getBody());
+        @Override
+        public void beginContact(Contact contact) {
+            if (contact.isTouching()) {
+                Fixture attacker = contact.getFixtureA();
+                Fixture defender = contact.getFixtureB();
+                WorldManifold worldManifold = contact.getWorldManifold();
+                if ("enemy".equals(defender.getUserData())) {
+                    Vector2 vel1 = attacker.getBody().
+                            getLinearVelocityFromWorldPoint(worldManifold.getPoints()[0]);
+                    Vector2 vel2 = defender.getBody().
+                            getLinearVelocityFromWorldPoint(worldManifold.getPoints()[0]);
+                    Vector2 impactVelocity = vel1.sub(vel2);
+                    if (Math.abs(impactVelocity.x) > 1 || Math.abs(impactVelocity.y) > 1) {
+                        toRemove.add(defender.getBody());
+                    }
                 }
             }
         }
+
+        @Override
+        public void endContact(Contact contact) {
+
+        }
+
+        @Override
+        public void preSolve(Contact contact, Manifold oldManifold) {
+
+        }
+
+        @Override
+        public void postSolve(Contact contact, ContactImpulse impulse) {
+
+        }
     }
-
-    @Override
-    public void endContact(Contact contact) {
-
-    }
-
-    @Override
-    public void preSolve(Contact contact, Manifold oldManifold) {
-
-    }
-
-    @Override
-    public void postSolve(Contact contact, ContactImpulse impulse) {
-
-    }
-}
 }
