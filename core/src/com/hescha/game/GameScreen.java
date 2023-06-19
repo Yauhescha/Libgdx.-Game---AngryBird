@@ -46,6 +46,16 @@ public class GameScreen extends ScreenAdapter {
     private static float UNIT_WIDTH = WORLD_WIDTH / UNITS_PER_METER;
     private static float UNIT_HEIGHT = WORLD_HEIGHT / UNITS_PER_METER;
 
+    private static final float MAX_STRENGTH = 15;
+    private static final float MAX_DISTANCE = 100;
+    private static final float UPPER_ANGLE = 3 * MathUtils.PI / 2f;
+    private static final float LOWER_ANGLE = MathUtils.PI / 2f;
+    private final Vector2 anchor = new Vector2(convertMetresToUnits(3), convertMetresToUnits(6));
+    private final Vector2 firingPosition = anchor.cpy();
+    private float distance;
+    private float angle;
+
+
     private Viewport viewport;
     private OrthographicCamera camera;
     private OrthographicCamera box2dCam;
@@ -86,8 +96,15 @@ public class GameScreen extends ScreenAdapter {
 
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override
-            public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+            public boolean touchDragged(int screenX, int screenY, int pointer) {
+                calculateAngleAndDistanceForBullet(screenX, screenY);
+                return true;
+            }
+
+            @Override
+            public boolean touchUp(int screenX, int screenY, int pointer, int button) {
                 createBullet();
+                firingPosition.set(anchor.cpy());
                 return true;
             }
         });
@@ -120,24 +137,30 @@ public class GameScreen extends ScreenAdapter {
     }
 
     private void drawDebug() {
+        debugRenderer.render(world, box2dCam.combined);
         shapeRenderer.setProjectionMatrix(camera.projection);
         shapeRenderer.setTransformMatrix(camera.view);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-
-
+        shapeRenderer.rect(anchor.x - 5, anchor.y - 5, 10, 10);
+        shapeRenderer.rect(firingPosition.x - 5, firingPosition.y - 5, 10, 10);
+        shapeRenderer.line(anchor.x, anchor.y, firingPosition.x, firingPosition.y);
         shapeRenderer.end();
     }
 
     private void createBullet() {
         CircleShape circleShape = new CircleShape();
         circleShape.setRadius(0.5f);
-        circleShape.setPosition(new Vector2(3,6));
+        circleShape.setPosition(new Vector2(
+                convertUnitsToMetres(firingPosition.x),
+                convertUnitsToMetres(firingPosition.y)));
         BodyDef bd = new BodyDef();
         bd.type = BodyDef.BodyType.DynamicBody;
         Body bullet = world.createBody(bd);
-        bullet.createFixture(circleShape, 0);
+        bullet.createFixture(circleShape, 1);
         circleShape.dispose();
-        bullet.setLinearVelocity(10,6);
+        float velX = Math.abs((MAX_STRENGTH * -MathUtils.cos(angle) * (distance / 100f)));
+        float velY = Math.abs((MAX_STRENGTH * -MathUtils.sin(angle) * (distance / 100f)));
+        bullet.setLinearVelocity(velX, velY);
     }
 
     private void clearDeadBodies() {
@@ -147,44 +170,83 @@ public class GameScreen extends ScreenAdapter {
         toRemove.clear();
     }
 
+    private float convertUnitsToMetres(float pixels) {
+        return pixels / UNITS_PER_METER;
+    }
+
+    private float convertMetresToUnits(float metres) {
+        return metres * UNITS_PER_METER;
+    }
+
+    private float angleBetweenTwoPoints() {
+        float angle = MathUtils.atan2(anchor.y - firingPosition.y,
+                anchor.x - firingPosition.x);
+        angle %= 2 * MathUtils.PI;
+        if (angle < 0) angle += 2 * MathUtils.PI2;
+        return angle;
+    }
+
+    private float distanceBetweenTwoPoints() {
+        return (float) Math.sqrt(((anchor.x - firingPosition.x) *
+                (anchor.x - firingPosition.x)) + ((anchor.y - firingPosition.y)
+                * (anchor.y - firingPosition.y)));
+    }
+
+    private void calculateAngleAndDistanceForBullet(int screenX, int screenY) {
+        firingPosition.set(screenX, screenY);
+        viewport.unproject(firingPosition);
+        distance = distanceBetweenTwoPoints();
+        angle = angleBetweenTwoPoints();
+        if (distance > MAX_DISTANCE) {
+            distance = MAX_DISTANCE;
+        }
+        if (angle > LOWER_ANGLE) {
+            if (angle > UPPER_ANGLE) {
+                angle = 0;
+            } else {
+                angle = LOWER_ANGLE;
+            }
+        }
+        firingPosition.set(anchor.x + (distance * -MathUtils.cos(angle)),
+                anchor.y + (distance * -MathUtils.sin(angle)));
+    }
 
 
 
+class NuttyContactListener implements ContactListener {
 
-    class NuttyContactListener implements ContactListener {
-
-        @Override
-        public void beginContact(Contact contact) {
-            if (contact.isTouching()) {
-                Fixture attacker = contact.getFixtureA();
-                Fixture defender = contact.getFixtureB();
-                WorldManifold worldManifold = contact.getWorldManifold();
-                if ("enemy".equals(defender.getUserData())) {
-                    Vector2 vel1 = attacker.getBody().
-                            getLinearVelocityFromWorldPoint(worldManifold.getPoints()[0]);
-                    Vector2 vel2 = defender.getBody().
-                            getLinearVelocityFromWorldPoint(worldManifold.getPoints()[0]);
-                    Vector2 impactVelocity = vel1.sub(vel2);
-                    if (Math.abs(impactVelocity.x) > 1 || Math.abs(impactVelocity.y) > 1) {
-                        toRemove.add(defender.getBody());
-                    }
+    @Override
+    public void beginContact(Contact contact) {
+        if (contact.isTouching()) {
+            Fixture attacker = contact.getFixtureA();
+            Fixture defender = contact.getFixtureB();
+            WorldManifold worldManifold = contact.getWorldManifold();
+            if ("enemy".equals(defender.getUserData())) {
+                Vector2 vel1 = attacker.getBody().
+                        getLinearVelocityFromWorldPoint(worldManifold.getPoints()[0]);
+                Vector2 vel2 = defender.getBody().
+                        getLinearVelocityFromWorldPoint(worldManifold.getPoints()[0]);
+                Vector2 impactVelocity = vel1.sub(vel2);
+                if (Math.abs(impactVelocity.x) > 1 || Math.abs(impactVelocity.y) > 1) {
+                    toRemove.add(defender.getBody());
                 }
             }
         }
-
-        @Override
-        public void endContact(Contact contact) {
-
-        }
-
-        @Override
-        public void preSolve(Contact contact, Manifold oldManifold) {
-
-        }
-
-        @Override
-        public void postSolve(Contact contact, ContactImpulse impulse) {
-
-        }
     }
+
+    @Override
+    public void endContact(Contact contact) {
+
+    }
+
+    @Override
+    public void preSolve(Contact contact, Manifold oldManifold) {
+
+    }
+
+    @Override
+    public void postSolve(Contact contact, ContactImpulse impulse) {
+
+    }
+}
 }
