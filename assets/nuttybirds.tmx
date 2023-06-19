@@ -21,7 +21,7 @@
   <object id="14" x="513.667" y="354" width="29" height="126"/>
  </objectgroup>
  <objectgroup id="4" name="Physics_Birds">
-  <object id="10" x="571.296" y="414.746" width="67.5168" height="63.0652">
+  <object id="10" x="571.296" y="421.75" width="67.5168" height="63.0652">
    <ellipse/>
   </object>
  </objectgroup>
