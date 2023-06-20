@@ -17,6 +17,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
+import com.badlogic.gdx.utils.OrderedMap;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
@@ -51,6 +52,8 @@ public class GameScreen extends ScreenAdapter {
 
     private TiledMap tiledMap;
     private OrthogonalTiledMapRenderer orthogonalTiledMapRenderer;
+    private AcornPool acornPool;
+    private OrderedMap<Body, Acorn> acorns = new OrderedMap<>();
 
     private float distance;
     private float angle;
@@ -96,7 +99,7 @@ public class GameScreen extends ScreenAdapter {
 
             @Override
             public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-                createBullet();
+                createAcorn();
                 firingPosition.set(anchor.cpy());
                 return true;
             }
@@ -117,6 +120,8 @@ public class GameScreen extends ScreenAdapter {
         squirrel = new Sprite(GameAngryBird.getAssetManager().get("squirrel.png", Texture.class));
         squirrel.setPosition(32, 64);
         staticAcorn = new Sprite(GameAngryBird.getAssetManager().get("acorn.png", Texture.class));
+
+        acornPool = new AcornPool();
     }
 
     @Override
@@ -135,6 +140,7 @@ public class GameScreen extends ScreenAdapter {
         box2dCam.position.set(UNIT_WIDTH / 2, UNIT_HEIGHT / 2, 0);
         box2dCam.update();
         updateSpritePositions();
+        updateAcornPositions();
     }
 
     private void clearDeadBodies() {
@@ -156,6 +162,16 @@ public class GameScreen extends ScreenAdapter {
             sprite.setRotation(MathUtils.radiansToDegrees * body.getAngle());
         }
         staticAcorn.setPosition(firingPosition.x - staticAcorn.getWidth() / 2f, firingPosition.y - staticAcorn.getHeight() / 2f);
+    }
+
+    private void updateAcornPositions() {
+        for (Body body : acorns.keys()) {
+            Acorn acorn = acorns.get(body);
+            acorn.setPosition(
+                    convertMetresToUnits(body.getPosition().x) - acorn.getWidth() / 2f,
+                    convertMetresToUnits(body.getPosition().y) - acorn.getHeight() / 2f);
+            acorn.setRotation(MathUtils.radiansToDegrees * body.getAngle());
+        }
     }
 
     private void calculateAngleAndDistanceForBullet(int screenX, int screenY) {
@@ -207,6 +223,10 @@ public class GameScreen extends ScreenAdapter {
             sprite.draw(batch);
         }
 
+        for (Acorn acorn : acorns.values()) {
+            acorn.draw(batch);
+        }
+
         squirrel.draw(batch);
         staticAcorn.draw(batch);
         slingshot.draw(batch);
@@ -224,26 +244,22 @@ public class GameScreen extends ScreenAdapter {
         shapeRenderer.end();
     }
 
-    private void createBullet() {
+    private void createAcorn() {
         CircleShape circleShape = new CircleShape();
         circleShape.setRadius(0.5f);
         BodyDef bd = new BodyDef();
         bd.type = BodyDef.BodyType.DynamicBody;
-        Body bullet = world.createBody(bd);
-        bullet.setUserData("acorn");
-        bullet.createFixture(circleShape, 1);
-        bullet.setTransform(new Vector2(convertUnitsToMetres(firingPosition.x), convertUnitsToMetres(firingPosition.y)), 0);
-
-        Sprite sprite = new Sprite(GameAngryBird.getAssetManager().get("acorn.png", Texture.class));
-        sprite.setOrigin(sprite.getWidth() / 2, sprite.getHeight() / 2);
-        sprites.put(bullet, sprite);
-
+        Body acorn = world.createBody(bd);
+        acorn.setUserData("acorn");
+        acorn.createFixture(circleShape, 1);
+        acorn.setTransform(new Vector2(
+                convertUnitsToMetres(firingPosition.x),
+                convertUnitsToMetres(firingPosition.y)), 0);
+        acorns.put(acorn, acornPool.obtain());
         circleShape.dispose();
-
         float velX = Math.abs((MAX_STRENGTH * -MathUtils.cos(angle) * (distance / 100f)));
         float velY = Math.abs((MAX_STRENGTH * -MathUtils.sin(angle) * (distance / 100f)));
-
-        bullet.setLinearVelocity(velX, velY);
+        acorn.setLinearVelocity(velX, velY);
     }
 
     private float convertUnitsToMetres(float pixels) {
