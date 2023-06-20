@@ -47,7 +47,7 @@ public class GameScreen extends ScreenAdapter {
     private OrthographicCamera box2dCam;
     private Box2DDebugRenderer debugRenderer;
 
-    private ObjectMap<Body, Sprite> sprites = new ObjectMap<>();
+    private OrderedMap<Body, Sprite> sprites = new OrderedMap<>();
     private Array<Body> toRemove = new Array<>();
 
     private TiledMap tiledMap;
@@ -255,11 +255,21 @@ public class GameScreen extends ScreenAdapter {
         acorn.setTransform(new Vector2(
                 convertUnitsToMetres(firingPosition.x),
                 convertUnitsToMetres(firingPosition.y)), 0);
+        checkLimitAndRemoveAcornIfNecessary();
         acorns.put(acorn, acornPool.obtain());
         circleShape.dispose();
         float velX = Math.abs((MAX_STRENGTH * -MathUtils.cos(angle) * (distance / 100f)));
         float velY = Math.abs((MAX_STRENGTH * -MathUtils.sin(angle) * (distance / 100f)));
         acorn.setLinearVelocity(velX, velY);
+    }
+
+    private void checkLimitAndRemoveAcornIfNecessary() {
+        if (acorns.size == AcornPool.ACORN_COUNT) {
+            Body body = acorns.keys().iterator().next();
+            toRemove.add(body);
+            Acorn acorn = acorns.remove(body);
+            acornPool.free(acorn);
+        }
     }
 
     private float convertUnitsToMetres(float pixels) {
